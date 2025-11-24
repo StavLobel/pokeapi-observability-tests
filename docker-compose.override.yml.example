@@ -1,0 +1,96 @@
+# docker-compose.override.yml.example
+# Copy this file to docker-compose.override.yml and customize for your local environment
+# This file is automatically loaded by docker-compose and overrides settings in docker-compose.yml
+
+version: '3.8'
+
+services:
+  # Test Runner customizations
+  test-runner:
+    # Override resource limits for local development
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+    # Override command for interactive development
+    # command: tail -f /dev/null  # Keep container running for manual test execution
+    # environment:
+    #   - DEBUG=true
+    #   - LOG_LEVEL=DEBUG
+
+  # PostgreSQL customizations
+  postgres:
+    # Override resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    # Expose additional ports if needed
+    # ports:
+    #   - "5433:5432"  # Alternative port mapping
+
+  # Prometheus customizations
+  prometheus:
+    # Override retention period for local development
+    # command:
+    #   - '--config.file=/etc/prometheus/prometheus.yml'
+    #   - '--storage.tsdb.path=/prometheus'
+    #   - '--storage.tsdb.retention.time=7d'  # Shorter retention for local
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  # Grafana customizations
+  grafana:
+    # Override admin credentials
+    # environment:
+    #   - GF_SECURITY_ADMIN_USER=myadmin
+    #   - GF_SECURITY_ADMIN_PASSWORD=mypassword
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # Loki customizations
+  loki:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # Locust customizations
+  locust:
+    # Override for different load test scenarios
+    # command: locust -f /app/locust/locustfile.py --host https://pokeapi.co/api/v2 --headless --users 10 --spawn-rate 1 --run-time 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  # ReportPortal customizations
+  reportportal-api:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+
+# Optional: Add additional services for local development
+# services:
+#   redis:
+#     image: redis:alpine
+#     container_name: pokeapi-redis
+#     ports:
+#       - "6379:6379"
+#     networks:
+#       - pokeapi-network

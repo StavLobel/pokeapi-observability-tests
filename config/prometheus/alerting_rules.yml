@@ -1,0 +1,178 @@
+# Prometheus alerting rules for PokéAPI observability tests
+
+groups:
+  - name: pokeapi_api_health
+    interval: 30s
+    rules:
+      # Alert when API latency is high
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, rate(pokeapi_request_duration_seconds_bucket[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High API latency detected for {{ $labels.endpoint }}"
+          description: "P95 latency is {{ $value | humanizeDuration }} for endpoint {{ $labels.endpoint }}"
+          dashboard: "http://grafana:3000/d/api-performance"
+
+      # Alert when API latency is critical
+      - alert: CriticalAPILatency
+        expr: histogram_quantile(0.95, rate(pokeapi_request_duration_seconds_bucket[5m])) > 2.0
+        for: 2m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "Critical API latency detected for {{ $labels.endpoint }}"
+          description: "P95 latency is {{ $value | humanizeDuration }} for endpoint {{ $labels.endpoint }}"
+
+  - name: pokeapi_test_failures
+    interval: 30s
+    rules:
+      # Alert when test failure rate is high
+      - alert: HighTestFailureRate
+        expr: |
+          (
+            rate(pokeapi_failures_total[10m]) 
+            / 
+            (rate(pokeapi_requests_total[10m]) + 0.001)
+          ) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          component: tests
+        annotations:
+          summary: "High test failure rate detected"
+          description: "Failure rate is {{ $value | humanizePercentage }} for endpoint {{ $labels.endpoint }}"
+          failure_type: "{{ $labels.failure_type }}"
+
+      # Alert when test failure rate is critical
+      - alert: CriticalTestFailureRate
+        expr: |
+          (
+            rate(pokeapi_failures_total[5m]) 
+            / 
+            (rate(pokeapi_requests_total[5m]) + 0.001)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: critical
+          component: tests
+        annotations:
+          summary: "Critical test failure rate detected"
+          description: "Failure rate is {{ $value | humanizePercentage }} for endpoint {{ $labels.endpoint }}"
+
+  - name: pokeapi_schema_changes
+    interval: 60s
+    rules:
+      # Alert when schema changes are detected
+      - alert: SchemaChangeDetected
+        expr: increase(pokeapi_schema_changes_total[1h]) > 0
+        labels:
+          severity: info
+          component: schema
+        annotations:
+          summary: "API schema change detected for {{ $labels.endpoint }}"
+          description: "Schema changed for endpoint {{ $labels.endpoint }}. Review changes in ReportPortal."
+          action: "Review schema changes and update tests if necessary"
+
+      # Alert when multiple schema changes occur rapidly
+      - alert: FrequentSchemaChanges
+        expr: increase(pokeapi_schema_changes_total[6h]) > 3
+        labels:
+          severity: warning
+          component: schema
+        annotations:
+          summary: "Frequent schema changes detected for {{ $labels.endpoint }}"
+          description: "{{ $value }} schema changes detected in the last 6 hours for endpoint {{ $labels.endpoint }}"
+
+  - name: pokeapi_circuit_breaker
+    interval: 30s
+    rules:
+      # Alert when circuit breaker is open
+      - alert: CircuitBreakerOpen
+        expr: pokeapi_circuit_breaker_state == 1
+        for: 2m
+        labels:
+          severity: warning
+          component: resilience
+        annotations:
+          summary: "Circuit breaker opened for {{ $labels.endpoint }}"
+          description: "Circuit breaker is open for endpoint {{ $labels.endpoint }} due to repeated failures"
+          action: "Check API health and error logs"
+
+      # Alert when circuit breaker is frequently opening
+      - alert: CircuitBreakerFlapping
+        expr: changes(pokeapi_circuit_breaker_state[30m]) > 5
+        labels:
+          severity: warning
+          component: resilience
+        annotations:
+          summary: "Circuit breaker flapping for {{ $labels.endpoint }}"
+          description: "Circuit breaker has changed state {{ $value }} times in the last 30 minutes"
+
+  - name: pokeapi_performance_regression
+    interval: 60s
+    rules:
+      # Alert when performance degrades significantly
+      - alert: PerformanceRegression
+        expr: |
+          (
+            histogram_quantile(0.95, rate(pokeapi_request_duration_seconds_bucket[10m]))
+            /
+            (pokeapi_performance_baseline_p95 + 0.001)
+          ) > 1.2
+        for: 15m
+        labels:
+          severity: warning
+          component: performance
+        annotations:
+          summary: "Performance regression detected for {{ $labels.endpoint }}"
+          description: "Current P95 latency is {{ $value | humanizePercentage }} of baseline for endpoint {{ $labels.endpoint }}"
+
+  - name: pokeapi_test_flakiness
+    interval: 60s
+    rules:
+      # Alert when test flakiness is high
+      - alert: HighTestFlakiness
+        expr: pokeapi_test_flakiness_rate > 0.1
+        for: 1h
+        labels:
+          severity: warning
+          component: tests
+        annotations:
+          summary: "High test flakiness detected for {{ $labels.test_name }}"
+          description: "Test {{ $labels.test_name }} has a flakiness rate of {{ $value | humanizePercentage }}"
+          action: "Investigate and fix flaky test"
+
+  - name: pokeapi_service_health
+    interval: 30s
+    rules:
+      # Alert when scrape targets are down
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: infrastructure
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.job }} on {{ $labels.instance }} has been down for more than 2 minutes"
+          action: "Check service logs and restart if necessary"
+
+      # Alert when too many requests are failing
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(pokeapi_failures_total[5m])) by (endpoint)
+            /
+            sum(rate(pokeapi_requests_total[5m])) by (endpoint)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High error rate for {{ $labels.endpoint }}"
+          description: "Error rate is {{ $value | humanizePercentage }} for endpoint {{ $labels.endpoint }}"

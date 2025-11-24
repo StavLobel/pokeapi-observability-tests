@@ -1,0 +1,152 @@
+# Promtail configuration for PokéAPI observability tests
+# Collects logs from Docker containers and ships them to Loki
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+    batchwait: 1s
+    batchsize: 1048576
+    timeout: 10s
+
+scrape_configs:
+  # Scrape logs from test-runner container
+  - job_name: test-runner
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: name
+            values: ["pokeapi-test-runner"]
+    
+    relabel_configs:
+      # Add container name label
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container_name'
+      
+      # Add container ID label
+      - source_labels: ['__meta_docker_container_id']
+        target_label: 'container_id'
+      
+      # Add service label
+      - replacement: 'test-runner'
+        target_label: 'service'
+      
+      # Add environment label
+      - replacement: 'local'
+        target_label: 'environment'
+      
+      # Add component label
+      - replacement: 'pytest'
+        target_label: 'component'
+    
+    pipeline_stages:
+      # Parse JSON logs if present
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            message: message
+            test_name: test_name
+            endpoint: endpoint
+            status_code: status_code
+      
+      # Extract timestamp
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+      
+      # Add labels from parsed JSON
+      - labels:
+          level:
+          test_name:
+          endpoint:
+      
+      # Output stage
+      - output:
+          source: message
+
+  # Scrape logs from Locust container
+  - job_name: locust
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: name
+            values: ["pokeapi-locust"]
+    
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container_name'
+      
+      - source_labels: ['__meta_docker_container_id']
+        target_label: 'container_id'
+      
+      - replacement: 'locust'
+        target_label: 'service'
+      
+      - replacement: 'local'
+        target_label: 'environment'
+      
+      - replacement: 'load-testing'
+        target_label: 'component'
+    
+    pipeline_stages:
+      - regex:
+          expression: '^\[(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3})\] (?P<level>\w+)/(?P<logger>[\w\.]+): (?P<message>.*)'
+      
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02 15:04:05,000'
+      
+      - labels:
+          level:
+          logger:
+
+  # Scrape logs from Prometheus container
+  - job_name: prometheus
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: name
+            values: ["pokeapi-prometheus"]
+    
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container_name'
+      
+      - replacement: 'prometheus'
+        target_label: 'service'
+      
+      - replacement: 'local'
+        target_label: 'environment'
+
+  # Scrape logs from Grafana container
+  - job_name: grafana
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: name
+            values: ["pokeapi-grafana"]
+    
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container_name'
+      
+      - replacement: 'grafana'
+        target_label: 'service'
+      
+      - replacement: 'local'
+        target_label: 'environment'

@@ -1,0 +1,304 @@
+version: '3.8'
+
+services:
+  # Test Runner - Python pytest with HTTPX
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pokeapi-test-runner
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./tests:/app/tests
+      - ./locust:/app/locust
+      - ./config:/app/config
+      - ./.env:/app/.env
+    environment:
+      - POKEAPI_BASE_URL=${POKEAPI_BASE_URL:-https://pokeapi.co/api/v2}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-pokeapi_cache}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - REPORTPORTAL_ENDPOINT=http://reportportal-api:8080
+      - REPORTPORTAL_PROJECT=${REPORTPORTAL_PROJECT:-pokeapi-tests}
+      - REPORTPORTAL_API_TOKEN=${REPORTPORTAL_API_TOKEN}
+      - PROMETHEUS_PORT=8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      reportportal-api:
+        condition: service_started
+    networks:
+      - pokeapi-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # PostgreSQL - Response cache and schema tracking
+  postgres:
+    image: postgres:15-alpine
+    container_name: pokeapi-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-pokeapi_cache}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - pokeapi-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # pgAdmin - Database visualization
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pokeapi-pgadmin
+    ports:
+      - "5050:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL:-admin@pokeapi.local}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD:-admin}
+      - PGADMIN_CONFIG_SERVER_MODE=False
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - pokeapi-network
+    restart: unless-stopped
+
+  # ReportPortal PostgreSQL
+  reportportal-postgres:
+    image: postgres:15-alpine
+    container_name: reportportal-postgres
+    environment:
+      - POSTGRES_DB=reportportal
+      - POSTGRES_USER=rpuser
+      - POSTGRES_PASSWORD=${RP_POSTGRES_PASSWORD:-rppass}
+    volumes:
+      - reportportal-postgres-data:/var/lib/postgresql/data
+    networks:
+      - pokeapi-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rpuser"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ReportPortal API
+  reportportal-api:
+    image: reportportal/service-api:5.10.0
+    container_name: reportportal-api
+    environment:
+      - RP_DB_HOST=reportportal-postgres
+      - RP_DB_PORT=5432
+      - RP_DB_NAME=reportportal
+      - RP_DB_USER=rpuser
+      - RP_DB_PASS=${RP_POSTGRES_PASSWORD:-rppass}
+      - JAVA_OPTS=-Xmx1g -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp
+    depends_on:
+      reportportal-postgres:
+        condition: service_healthy
+    networks:
+      - pokeapi-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ReportPortal UI
+  reportportal-ui:
+    image: reportportal/service-ui:5.10.0
+    container_name: reportportal-ui
+    ports:
+      - "8080:8080"
+    environment:
+      - RP_SERVER_PORT=8080
+    depends_on:
+      - reportportal-api
+    networks:
+      - pokeapi-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ReportPortal Analyzer
+  reportportal-analyzer:
+    image: reportportal/service-auto-analyzer:5.10.0
+    container_name: reportportal-analyzer
+    environment:
+      - LOGGING_LEVEL=INFO
+      - AMQP_EXCHANGE_NAME=analyzer-default
+      - AMQP_URL=amqp://rabbitmq:5672
+    depends_on:
+      - reportportal-postgres
+      - rabbitmq
+    networks:
+      - pokeapi-network
+    restart: unless-stopped
+
+  # RabbitMQ for ReportPortal
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: reportportal-rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=rabbitmq
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-rabbitmq}
+    networks:
+      - pokeapi-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Prometheus - Metrics storage
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: pokeapi-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./config/prometheus/alerting_rules.yml:/etc/prometheus/alerting_rules.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - pokeapi-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Grafana - Visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: pokeapi-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - pokeapi-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Loki - Log aggregation
+  loki:
+    image: grafana/loki:latest
+    container_name: pokeapi-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./config/loki/loki-config.yml:/etc/loki/local-config.yaml
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - pokeapi-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Promtail - Log shipper
+  promtail:
+    image: grafana/promtail:latest
+    container_name: pokeapi-promtail
+    volumes:
+      - ./config/promtail/promtail-config.yml:/etc/promtail/config.yml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - pokeapi-network
+    restart: unless-stopped
+
+  # Locust - Load testing
+  locust:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pokeapi-locust
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./locust:/app/locust
+      - ./tests/models:/app/tests/models
+      - ./tests/api:/app/tests/api
+    command: locust -f /app/locust/locustfile.py --host https://pokeapi.co/api/v2
+    networks:
+      - pokeapi-network
+    restart: unless-stopped
+
+  # Locust Exporter - Export Locust metrics to Prometheus
+  locust-exporter:
+    image: containersol/locust_exporter:latest
+    container_name: pokeapi-locust-exporter
+    ports:
+      - "9646:9646"
+    environment:
+      - LOCUST_EXPORTER_URI=http://locust:8089
+    depends_on:
+      - locust
+    networks:
+      - pokeapi-network
+    restart: unless-stopped
+
+networks:
+  pokeapi-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  pgadmin-data:
+  reportportal-postgres-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:
