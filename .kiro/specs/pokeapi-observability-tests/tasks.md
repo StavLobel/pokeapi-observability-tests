@@ -5,14 +5,14 @@
 ## Phase 1: 🏗️ Project Foundation & Infrastructure
 
 - [x] 1. 📦 Set up project structure and dependencies
-  - Create project directory structure (tests/, locust/, config/, docker/)
-  - Create requirements.txt with core dependencies (pytest, httpx, pydantic, prometheus-client, psycopg2, tenacity, python-dotenv)
-  - Create requirements-dev.txt with dev dependencies (pytest plugins, hypothesis, black, ruff, mypy, truffleHog)
-  - Create pyproject.toml for project configuration
-  - Create .gitignore for Python projects
-  - Create .dockerignore for Docker builds
-  - Create .env.example with placeholder credentials
-  - Create README.md with project overview and setup instructions
+  - ✅ Create project directory structure (tests/, locust/, config/, docker/)
+  - ✅ Create requirements.txt with core dependencies (pytest, httpx, pydantic, prometheus-client, psycopg2, tenacity, python-dotenv)
+  - ✅ Create requirements-dev.txt with dev dependencies (pytest plugins, hypothesis, black, ruff, mypy, truffleHog)
+  - ✅ Create pyproject.toml for project configuration
+  - ✅ Create .gitignore for Python projects
+  - ✅ Create .dockerignore for Docker builds
+  - ✅ Create .env.example with placeholder credentials
+  - ✅ Create README.md with project overview and setup instructions
   - _Requirements: 1.1, 2.1, 16.4, 20.1_
   - **GitHub Issue: "Project Foundation Setup"**
 
@@ -34,41 +34,42 @@
   - _Requirements: 1.1-1.10, 20.2, 20.3, 20.4, 20.5_
   - **GitHub Issue: "Docker Compose Infrastructure"**
 
-
 - [ ] 3. 🗄️ Create PostgreSQL database schema
-  - Create SQL initialization script for api_responses table
-  - Create SQL initialization script for schema_versions table
-  - Create SQL initialization script for schema_changes table
-  - Create SQL initialization script for performance_baselines table
-  - Create SQL initialization script for flaky_tests table
-  - Create indexes for performance optimization
-  - Test database initialization with docker-compose up
+  - Create docker/postgres/init.sql with database initialization
+  - Create api_responses table with indexes
+  - Create schema_versions table with indexes
+  - Create schema_changes table with indexes
+  - Create performance_baselines table with indexes
+  - Create flaky_tests table with indexes
   - _Requirements: 1.4, 5.1-5.3, 17.2, 18.1_
 
-- [ ] 3.1 🧪 Write property test for database schema initialization
+- [ ]* 3.1 🧪 Write property test for database schema initialization
   - **Property 3: API responses are stored in database**
   - **Validates: Requirements 5.1, 5.2, 5.3**
 
 ## Phase 2: 🔧 Core API Testing Framework
 
 - [ ] 4. 📋 Implement Pydantic models for API validation
-  - Create models/pokemon.py with Pokemon, PokemonType, PokemonAbility, PokemonStat models
-  - Create models/type.py with Type, TypePokemon models
-  - Create models/ability.py with Ability, EffectEntry models
-  - Configure models with extra="allow" for forward compatibility
+  - Create tests/models/__init__.py
+  - Create tests/models/pokemon.py with Pokemon, PokemonType, PokemonAbility, PokemonStat, PokemonSprite models
+  - Create tests/models/type.py with Type, TypePokemon models
+  - Create tests/models/ability.py with Ability, EffectEntry models
+  - Configure all models with extra="allow" for forward compatibility
   - Add comprehensive field validation and type hints
   - _Requirements: 2.2, 3.1-3.5_
 
-- [ ] 4.1 🧪 Write property test for Pydantic required fields validation
+- [ ]* 4.1 🧪 Write property test for Pydantic required fields validation
   - **Property 1: Pydantic schema validation enforces required fields**
   - **Validates: Requirements 3.1, 3.2, 3.3, 3.5**
 
-- [ ] 4.2 🧪 Write property test for Pydantic extra fields handling
+- [ ]* 4.2 🧪 Write property test for Pydantic extra fields handling
   - **Property 2: Pydantic models allow extra fields**
   - **Validates: Requirements 3.4**
 
 - [ ] 5. 🌐 Implement HTTPX API client with resilience patterns
-  - Create api/client.py with PokeAPIClient class
+  - Create tests/api/__init__.py
+  - Create tests/api/endpoints.py with endpoint URL constants
+  - Create tests/api/client.py with PokeAPIClient class
   - Implement async methods: get_pokemon(), get_type(), get_ability()
   - Add timeout configuration (default 10s)
   - Add retry logic with exponential backoff using tenacity library (max 3 retries)
@@ -79,7 +80,8 @@
   - _Requirements: 2.1, 7.1, 7.2, 14.1, 14.3_
 
 - [ ] 5.1 🛡️ Implement rate limiter
-  - Create utils/rate_limiter.py with RateLimiter class
+  - Create tests/utils/__init__.py
+  - Create tests/utils/rate_limiter.py with RateLimiter class
   - Implement token bucket algorithm for rate limiting
   - Configure max requests per time window (default: 100 req/min)
   - Add async acquire() method to wait when limit exceeded
@@ -87,7 +89,7 @@
   - _Requirements: 14.4_
 
 - [ ] 5.2 🔌 Implement circuit breaker pattern
-  - Create utils/circuit_breaker.py with CircuitBreaker class
+  - Create tests/utils/circuit_breaker.py with CircuitBreaker class
   - Track failure rate per endpoint (5-minute sliding window)
   - Open circuit after 50% failure rate over 10 requests
   - Half-open after 30 seconds to test recovery
@@ -96,7 +98,7 @@
   - _Requirements: 14.2, 14.5_
 
 - [ ] 6. 💾 Implement database repository layer
-  - Create utils/database.py with ResponseRepository class
+  - Create tests/utils/database.py with ResponseRepository class
   - Implement store_response() method with UPSERT logic
   - Implement get_latest_response() method for historical comparison
   - Implement store_schema_version() method
@@ -105,58 +107,59 @@
   - _Requirements: 5.1-5.3_
 
 - [ ] 7. 🔍 Implement schema tracking functionality
-  - Create utils/schema_tracker.py with SchemaTracker class
+  - Create tests/utils/schema_tracker.py with SchemaTracker class
   - Implement extract_schema_structure() to extract schema from JSON
   - Implement compare_schemas() to detect added/removed/modified fields
   - Return SchemaDiff object with change details
   - _Requirements: 4.1, 4.2_
 
-- [ ] 7.1 🧪 Write property test for schema change detection
+- [ ]* 7.1 🧪 Write property test for schema change detection
   - **Property 4: Schema comparison detects changes**
   - **Validates: Requirements 4.1, 4.2**
 
-- [ ] 7.2 🧪 Write property test for schema persistence
+- [ ]* 7.2 🧪 Write property test for schema persistence
   - **Property 5: Schema changes are persisted**
   - **Validates: Requirements 4.3**
 
-- [ ] 7.3 🧪 Write property test for unchanged schema handling
+- [ ]* 7.3 🧪 Write property test for unchanged schema handling
   - **Property 7: Unchanged schemas skip extra logging**
   - **Validates: Requirements 4.5**
 
 ## Phase 3: 📊 Observability & Metrics
 
 - [ ] 8. 📈 Implement Prometheus metrics collection
-  - Create utils/metrics.py with MetricsCollector class
+  - Create tests/utils/metrics.py with MetricsCollector class
   - Define counter metric: pokeapi_requests_total with endpoint label
   - Define histogram metric: pokeapi_request_duration_seconds with endpoint label
   - Define counter metric: pokeapi_failures_total with endpoint and failure_type labels
   - Define counter metric: pokeapi_schema_changes_total with endpoint label
+  - Define gauge metric: pokeapi_circuit_breaker_state with endpoint label
   - Implement methods: increment_request_counter(), record_latency(), increment_failure_counter(), increment_schema_change_counter()
-  - Expose metrics on /metrics endpoint (port 8000)
+  - Create simple Flask/FastAPI app to expose metrics on /metrics endpoint (port 8000)
   - _Requirements: 1.2, 7.1-7.5_
 
-- [ ] 8.1 🧪 Write property test for request metrics
+- [ ]* 8.1 🧪 Write property test for request metrics
   - **Property 11: Request metrics are incremented**
   - **Validates: Requirements 7.1**
 
-- [ ] 8.2 🧪 Write property test for latency metrics
+- [ ]* 8.2 🧪 Write property test for latency metrics
   - **Property 12: Latency metrics are recorded**
   - **Validates: Requirements 7.2**
 
-- [ ] 8.3 🧪 Write property test for failure metrics
+- [ ]* 8.3 🧪 Write property test for failure metrics
   - **Property 13: Failure metrics are incremented**
   - **Validates: Requirements 7.3**
 
-- [ ] 8.4 🧪 Write property test for schema change metrics
+- [ ]* 8.4 🧪 Write property test for schema change metrics
   - **Property 14: Schema change metrics are incremented**
   - **Validates: Requirements 7.4**
 
-- [ ] 8.5 🧪 Write property test for metrics exposure
+- [ ]* 8.5 🧪 Write property test for metrics exposure
   - **Property 15: All metrics are exposed**
   - **Validates: Requirements 7.5**
 
 - [ ] 9. 📝 Implement structured logging with secrets masking
-  - Create utils/logger.py with structured logging configuration
+  - Create tests/utils/logger.py with structured logging configuration
   - Configure python-json-logger for JSON output
   - Add log fields: timestamp, level, test_name, message, endpoint, status_code
   - Implement mask_sensitive_data() function to mask tokens, passwords, secrets
@@ -164,20 +167,20 @@
   - Configure log levels (DEBUG, INFO, WARNING, ERROR)
   - _Requirements: 9.1-9.3, 16.2_
 
-- [ ] 9.1 🧪 Write property test for structured log format
+- [ ]* 9.1 🧪 Write property test for structured log format
   - **Property 16: Structured logs contain required fields**
   - **Validates: Requirements 9.1**
 
-- [ ] 9.2 🧪 Write property test for API request logging
+- [ ]* 9.2 🧪 Write property test for API request logging
   - **Property 17: API request logs contain details**
   - **Validates: Requirements 9.2**
 
-- [ ] 9.3 🧪 Write property test for failure logging
+- [ ]* 9.3 🧪 Write property test for failure logging
   - **Property 18: Failure logs contain details**
   - **Validates: Requirements 9.3**
 
 - [ ] 10. ⚙️ Configure Prometheus scraping
-  - Create config/prometheus.yml with scrape configurations
+  - Create config/prometheus/prometheus.yml with scrape configurations
   - Add scrape job for test-runner:8000/metrics
   - Add scrape job for locust-exporter:9646/metrics
   - Configure scrape interval (15s)
@@ -185,34 +188,32 @@
   - _Requirements: 1.5, 7.5_
 
 - [ ] 11. 📋 Configure Loki and Promtail
-  - Create config/loki-config.yml for Loki configuration
-  - Create config/promtail-config.yml for log collection
+  - Create config/loki/loki-config.yml for Loki configuration
+  - Create config/promtail/promtail-config.yml for log collection
   - Configure Promtail to collect test-runner container logs
   - Add labels: container_name, service, environment
   - Configure log retention (7 days)
   - _Requirements: 1.7, 1.8, 9.4_
 
-- [ ] 11.1 🧪 Write property test for log shipping
+- [ ]* 11.1 🧪 Write property test for log shipping
   - **Property 19: Logs are shipped with metadata**
   - **Validates: Requirements 9.4**
 
 - [ ] 11.2 🔐 Implement secrets management
+  - Create tests/utils/config.py for centralized configuration management
   - Load environment variables from .env file using python-dotenv
-  - Create utils/config.py for centralized configuration management
   - Validate required environment variables on startup
-  - Document all required environment variables in .env.example
-  - Add secrets masking to logger (already in task 9)
+  - Provide default values for optional configuration
   - _Requirements: 16.1, 16.2, 16.4_
 
 - [ ] 11.3 🔍 Implement secrets scanning
-  - Add truffleHog to pre-commit hooks
   - Create .pre-commit-config.yaml with secrets scanning
-  - Add CI job to scan for leaked credentials
+  - Add truffleHog to pre-commit hooks
   - Configure truffleHog to fail on detected secrets
   - _Requirements: 16.5_
 
 - [ ] 11.4 📊 Implement performance baseline tracking
-  - Create utils/performance_tracker.py with PerformanceTracker class
+  - Create tests/utils/performance_tracker.py with PerformanceTracker class
   - Implement calculate_baseline() to compute P50, P95, P99 from last 7 days
   - Implement check_regression() to compare current vs baseline (20% threshold)
   - Implement store_baseline() to save baseline versions
@@ -221,19 +222,18 @@
   - _Requirements: 18.1, 18.2, 18.3, 18.5_
 
 - [ ] 11.5 🎯 Implement flakiness detection
-  - Configure pytest-rerunfailures in pytest.ini (3 retries, 1s delay)
-  - Create utils/flakiness_tracker.py with FlakinessTracker class
+  - Create tests/utils/flakiness_tracker.py with FlakinessTracker class
   - Track flaky test occurrences in flaky_tests table
   - Expose flakiness metrics to Prometheus
-  - Tag flaky tests in ReportPortal
+  - Implement pytest hook to detect and record flaky tests
   - _Requirements: 17.1, 17.2, 17.3, 17.4_
 
 ## Phase 4: 📊 Grafana Dashboards
 
 - [ ] 12. 🎨 Create Grafana dashboard configurations
   - Create config/grafana/provisioning/datasources/datasources.yml
-  - Configure Prometheus datasource
-  - Configure Loki datasource
+  - Configure Prometheus datasource with URL http://prometheus:9090
+  - Configure Loki datasource with URL http://loki:3100
   - _Requirements: 1.6_
   - **GitHub Issue: "Grafana Dashboards & Visualization"**
 
@@ -277,28 +277,27 @@
   - Add alert: SchemaChangeDetected (any schema change)
   - Add alert: CircuitBreakerOpen (circuit open for 2 min)
   - Configure alert labels and annotations
+  - Update prometheus.yml to include alerting_rules.yml
   - _Requirements: 15.1, 15.2, 15.3, 15.5_
 
-- [ ] 15.3 🔔 Configure Grafana alerting
+- [ ]* 15.3 🔔 Configure Grafana alerting
   - Configure Grafana to use Prometheus alert rules
   - Set up alert notification channels (email, optional Slack)
   - Configure notification policies
-  - Test alert delivery
   - Document alert setup in README
   - _Requirements: 15.4_
 
 ## Phase 5: 📋 ReportPortal Integration
 
 - [ ] 16. 🔗 Configure ReportPortal integration
-  - Create pytest.ini with reportportal configuration
+  - Update pytest.ini with reportportal configuration (already has basic config)
   - Configure RP endpoint, project name, API token from environment variables
   - Configure launch name, description, and tags
-  - Enable auto-analysis and pattern detection
-  - Document ReportPortal setup steps in README
   - _Requirements: 2.3, 10.1-10.5, 19.1-19.5_
   - **GitHub Issue: "ReportPortal Integration"**
 
-- [ ] 16.1 📚 Create ReportPortal setup guide
+- [ ]* 16.1 📚 Create ReportPortal setup guide
+  - Add ReportPortal setup section to README.md
   - Document how to start ReportPortal services
   - Document default credentials and first login
   - Document project creation steps
@@ -308,26 +307,28 @@
   - _Requirements: 19.2, 19.3, 19.4_
 
 - [ ] 17. 🔧 Implement pytest fixtures for ReportPortal
-  - Create conftest.py with ReportPortal fixtures
-  - Add fixture for attaching response payloads
-  - Add fixture for attaching logs
+  - Create tests/conftest.py with pytest fixtures
+  - Add fixture for database connection
+  - Add fixture for API client
+  - Add fixture for metrics collector
+  - Add fixture for attaching response payloads to ReportPortal
+  - Add fixture for attaching logs to ReportPortal
   - Add fixture for launch metadata
-  - Configure pytest marks (smoke, regression, load)
   - _Requirements: 2.3, 10.3_
 
-- [ ] 17.1 🧪 Write property test for ReportPortal test reporting
+- [ ]* 17.1 🧪 Write property test for ReportPortal test reporting
   - **Property 21: Test results are sent to ReportPortal**
   - **Validates: Requirements 2.3, 10.2**
 
-- [ ] 17.2 🧪 Write property test for ReportPortal launch creation
+- [ ]* 17.2 🧪 Write property test for ReportPortal launch creation
   - **Property 22: ReportPortal launches have metadata**
   - **Validates: Requirements 10.1**
 
-- [ ] 17.3 🧪 Write property test for ReportPortal launch tagging
+- [ ]* 17.3 🧪 Write property test for ReportPortal launch tagging
   - **Property 23: ReportPortal launches are tagged by suite**
   - **Validates: Requirements 10.3**
 
-- [ ] 17.4 🧪 Write property test for ReportPortal attachments
+- [ ]* 17.4 🧪 Write property test for ReportPortal attachments
   - **Property 24: Attachments are uploaded to ReportPortal**
   - **Validates: Requirements 10.5**
 

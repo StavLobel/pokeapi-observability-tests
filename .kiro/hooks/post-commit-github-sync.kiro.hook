@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Post-Commit GitHub Issue Updater",
+  "description": "Automatically updates GitHub issues based on commit messages after each commit is made to the repository",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A commit has just been made to the repository. Please analyze the latest commit message and any referenced issue numbers (e.g., #123, fixes #456, closes #789). Then update the corresponding GitHub issues accordingly by:\n1. Adding a comment with the commit details\n2. Updating issue status if keywords like 'fixes', 'closes', 'resolves' are present\n3. Linking related issues if mentioned\n4. Updating labels or milestones if appropriate based on the commit content\n\nPlease examine the git log to get the latest commit information and proceed with updating the relevant GitHub issues."
+  }
+}
