@@ -34,7 +34,7 @@
   - _Requirements: 1.1-1.10, 20.2, 20.3, 20.4, 20.5_
   - **GitHub Issue: "Docker Compose Infrastructure"**
 
-- [ ] 3. 🗄️ Create PostgreSQL database schema
+- [x] 3. 🗄️ Create PostgreSQL database schema
   - Create docker/postgres/init.sql with database initialization
   - Create api_responses table with indexes
   - Create schema_versions table with indexes
@@ -43,7 +43,7 @@
   - Create flaky_tests table with indexes
   - _Requirements: 1.4, 5.1-5.3, 17.2, 18.1_
 
-- [ ]* 3.1 🧪 Write property test for database schema initialization
+- [x] 3.1 🧪 Write property test for database schema initialization
   - **Property 3: API responses are stored in database**
   - **Validates: Requirements 5.1, 5.2, 5.3**
 

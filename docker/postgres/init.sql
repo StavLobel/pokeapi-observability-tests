@@ -1,11 +1,5 @@
--- PostgreSQL initialization script for PokéAPI observability tests
--- This script creates the database schema for caching API responses and tracking changes
-
--- Create database if it doesn't exist (handled by POSTGRES_DB env var)
--- CREATE DATABASE IF NOT EXISTS pokeapi_cache;
-
--- Connect to the database
-\c pokeapi_cache;
+-- PostgreSQL Database Initialization Script
+-- This script creates the schema for storing PokéAPI test data, schema versions, and performance metrics
 
 -- Enable UUID extension for potential future use
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -14,43 +8,49 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- API Responses Table
 -- Stores complete API responses for historical comparison
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS api_responses (
+CREATE TABLE api_responses (
     id SERIAL PRIMARY KEY,
     endpoint VARCHAR(100) NOT NULL,
     resource_id INTEGER NOT NULL,
     response_data JSONB NOT NULL,
-    status_code INTEGER DEFAULT 200,
-    response_time_ms FLOAT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_endpoint_resource_time UNIQUE(endpoint, resource_id, created_at)
+    UNIQUE(endpoint, resource_id, created_at)
 );
 
 -- Indexes for efficient querying
-CREATE INDEX IF NOT EXISTS idx_endpoint_resource ON api_responses(endpoint, resource_id);
-CREATE INDEX IF NOT EXISTS idx_created_at ON api_responses(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_endpoint_created ON api_responses(endpoint, created_at DESC);
+CREATE INDEX idx_endpoint_resource ON api_responses(endpoint, resource_id);
+CREATE INDEX idx_created_at ON api_responses(created_at DESC);
+
+-- Add comment for documentation
+COMMENT ON TABLE api_responses IS 'Stores complete API responses from PokéAPI for historical data comparison';
+COMMENT ON COLUMN api_responses.endpoint IS 'API endpoint name (e.g., pokemon, type, ability)';
+COMMENT ON COLUMN api_responses.resource_id IS 'Resource identifier (e.g., pokemon ID)';
+COMMENT ON COLUMN api_responses.response_data IS 'Complete JSON response from API';
 
 -- ============================================================================
 -- Schema Versions Table
 -- Tracks API schema structure changes over time
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS schema_versions (
+CREATE TABLE schema_versions (
     id SERIAL PRIMARY KEY,
     endpoint VARCHAR(100) NOT NULL,
     schema_structure JSONB NOT NULL,
-    schema_hash VARCHAR(64) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Indexes for schema tracking
-CREATE INDEX IF NOT EXISTS idx_schema_endpoint ON schema_versions(endpoint, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_schema_hash ON schema_versions(schema_hash);
+-- Index for retrieving latest schema by endpoint
+CREATE INDEX idx_schema_endpoint ON schema_versions(endpoint, created_at DESC);
+
+-- Add comment for documentation
+COMMENT ON TABLE schema_versions IS 'Tracks API schema structure versions for change detection';
+COMMENT ON COLUMN schema_versions.endpoint IS 'API endpoint name';
+COMMENT ON COLUMN schema_versions.schema_structure IS 'JSON representation of the schema structure';
 
 -- ============================================================================
 -- Schema Changes Table
 -- Records specific field-level changes detected in API schemas
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS schema_changes (
+CREATE TABLE schema_changes (
     id SERIAL PRIMARY KEY,
     endpoint VARCHAR(100) NOT NULL,
     change_type VARCHAR(50) NOT NULL,  -- 'field_added', 'field_removed', 'type_changed'
@@ -60,15 +60,20 @@ CREATE TABLE IF NOT EXISTS schema_changes (
     detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Indexes for change tracking
-CREATE INDEX IF NOT EXISTS idx_changes_endpoint ON schema_changes(endpoint, detected_at DESC);
-CREATE INDEX IF NOT EXISTS idx_changes_type ON schema_changes(change_type);
+-- Index for querying changes by endpoint and time
+CREATE INDEX idx_changes_endpoint ON schema_changes(endpoint, detected_at DESC);
+CREATE INDEX idx_changes_type ON schema_changes(change_type);
+
+-- Add comment for documentation
+COMMENT ON TABLE schema_changes IS 'Records specific field-level changes detected in API schemas';
+COMMENT ON COLUMN schema_changes.change_type IS 'Type of change: field_added, field_removed, or type_changed';
+COMMENT ON COLUMN schema_changes.field_path IS 'JSON path to the changed field (e.g., types[0].slot)';
 
 -- ============================================================================
 -- Performance Baselines Table
 -- Stores performance baseline metrics for regression detection
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS performance_baselines (
+CREATE TABLE performance_baselines (
     id SERIAL PRIMARY KEY,
     endpoint VARCHAR(100) NOT NULL,
     metric_name VARCHAR(50) NOT NULL,  -- 'p50', 'p95', 'p99'
@@ -77,151 +82,135 @@ CREATE TABLE IF NOT EXISTS performance_baselines (
     calculated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     valid_from TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     valid_until TIMESTAMP,
-    CONSTRAINT unique_endpoint_metric_valid UNIQUE(endpoint, metric_name, valid_from)
+    UNIQUE(endpoint, metric_name, valid_from)
 );
 
--- Indexes for baseline queries
-CREATE INDEX IF NOT EXISTS idx_baselines_endpoint ON performance_baselines(endpoint, valid_from DESC);
-CREATE INDEX IF NOT EXISTS idx_baselines_valid ON performance_baselines(valid_from, valid_until);
+-- Index for retrieving active baselines
+CREATE INDEX idx_baselines_endpoint ON performance_baselines(endpoint, valid_from DESC);
+CREATE INDEX idx_baselines_active ON performance_baselines(endpoint, metric_name, valid_from, valid_until);
+
+-- Add comment for documentation
+COMMENT ON TABLE performance_baselines IS 'Stores performance baseline metrics (P50, P95, P99) for regression detection';
+COMMENT ON COLUMN performance_baselines.metric_name IS 'Percentile metric: p50, p95, or p99';
+COMMENT ON COLUMN performance_baselines.baseline_value IS 'Baseline latency value in seconds';
+COMMENT ON COLUMN performance_baselines.sample_size IS 'Number of samples used to calculate baseline';
+COMMENT ON COLUMN performance_baselines.valid_from IS 'Start of baseline validity period';
+COMMENT ON COLUMN performance_baselines.valid_until IS 'End of baseline validity period (NULL for current baseline)';
 
 -- ============================================================================
 -- Flaky Tests Table
 -- Tracks test flakiness for reliability monitoring
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS flaky_tests (
+CREATE TABLE flaky_tests (
     id SERIAL PRIMARY KEY,
     test_name VARCHAR(255) NOT NULL,
     total_runs INTEGER DEFAULT 0,
     flaky_runs INTEGER DEFAULT 0,
     last_flaky_at TIMESTAMP,
-    first_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_test_name UNIQUE(test_name)
+    UNIQUE(test_name)
 );
 
--- Indexes for flakiness tracking
-CREATE INDEX IF NOT EXISTS idx_flaky_tests_name ON flaky_tests(test_name);
-CREATE INDEX IF NOT EXISTS idx_flaky_rate ON flaky_tests((flaky_runs::float / NULLIF(total_runs, 0)));
+-- Index for querying flaky tests
+CREATE INDEX idx_flaky_tests_name ON flaky_tests(test_name);
+CREATE INDEX idx_flaky_tests_rate ON flaky_tests(flaky_runs DESC, total_runs DESC);
+
+-- Add comment for documentation
+COMMENT ON TABLE flaky_tests IS 'Tracks test flakiness metrics for reliability monitoring';
+COMMENT ON COLUMN flaky_tests.test_name IS 'Full test name including module path';
+COMMENT ON COLUMN flaky_tests.total_runs IS 'Total number of times test has been executed';
+COMMENT ON COLUMN flaky_tests.flaky_runs IS 'Number of times test passed after retry';
+COMMENT ON COLUMN flaky_tests.last_flaky_at IS 'Timestamp of most recent flaky occurrence';
 
 -- ============================================================================
--- Views for Common Queries
+-- Helper Functions
 -- ============================================================================
 
--- View: Latest response per endpoint and resource
-CREATE OR REPLACE VIEW latest_responses AS
-SELECT DISTINCT ON (endpoint, resource_id)
-    id,
-    endpoint,
-    resource_id,
-    response_data,
-    status_code,
-    response_time_ms,
-    created_at
-FROM api_responses
-ORDER BY endpoint, resource_id, created_at DESC;
-
--- View: Latest schema per endpoint
-CREATE OR REPLACE VIEW latest_schemas AS
-SELECT DISTINCT ON (endpoint)
-    id,
-    endpoint,
-    schema_structure,
-    schema_hash,
-    created_at
-FROM schema_versions
-ORDER BY endpoint, created_at DESC;
-
--- View: Active performance baselines
-CREATE OR REPLACE VIEW active_baselines AS
-SELECT
-    endpoint,
-    metric_name,
-    baseline_value,
-    sample_size,
-    calculated_at,
-    valid_from
-FROM performance_baselines
-WHERE valid_until IS NULL OR valid_until > NOW()
-ORDER BY endpoint, metric_name;
-
--- View: Flaky test statistics
-CREATE OR REPLACE VIEW flaky_test_stats AS
-SELECT
-    test_name,
-    total_runs,
-    flaky_runs,
-    CASE
-        WHEN total_runs > 0 THEN ROUND((flaky_runs::float / total_runs * 100)::numeric, 2)
-        ELSE 0
-    END AS flakiness_percentage,
-    last_flaky_at,
-    first_seen_at
-FROM flaky_tests
-WHERE total_runs > 0
-ORDER BY flakiness_percentage DESC, total_runs DESC;
-
--- ============================================================================
--- Grant Permissions
--- ============================================================================
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO postgres;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO postgres;
-GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO postgres;
-
--- ============================================================================
--- Insert Sample Data (Optional - for testing)
--- ============================================================================
--- Uncomment to insert sample data for development/testing
-
--- INSERT INTO api_responses (endpoint, resource_id, response_data, status_code, response_time_ms)
--- VALUES
---     ('pokemon', 1, '{"id": 1, "name": "bulbasaur", "types": [{"type": {"name": "grass"}}]}'::jsonb, 200, 150.5),
---     ('pokemon', 25, '{"id": 25, "name": "pikachu", "types": [{"type": {"name": "electric"}}]}'::jsonb, 200, 120.3);
-
--- ============================================================================
--- Database Maintenance Functions
--- ============================================================================
-
--- Function to clean up old responses (keep last 30 days)
-CREATE OR REPLACE FUNCTION cleanup_old_responses()
-RETURNS INTEGER AS $$
+-- Function to get the latest schema for an endpoint
+CREATE OR REPLACE FUNCTION get_latest_schema(p_endpoint VARCHAR)
+RETURNS JSONB AS $$
 DECLARE
-    deleted_count INTEGER;
+    latest_schema JSONB;
 BEGIN
-    DELETE FROM api_responses
-    WHERE created_at < NOW() - INTERVAL '30 days';
+    SELECT schema_structure INTO latest_schema
+    FROM schema_versions
+    WHERE endpoint = p_endpoint
+    ORDER BY created_at DESC
+    LIMIT 1;
     
-    GET DIAGNOSTICS deleted_count = ROW_COUNT;
-    RETURN deleted_count;
+    RETURN latest_schema;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to get the latest response for a resource
+CREATE OR REPLACE FUNCTION get_latest_response(p_endpoint VARCHAR, p_resource_id INTEGER)
+RETURNS JSONB AS $$
+DECLARE
+    latest_response JSONB;
+BEGIN
+    SELECT response_data INTO latest_response
+    FROM api_responses
+    WHERE endpoint = p_endpoint AND resource_id = p_resource_id
+    ORDER BY created_at DESC
+    LIMIT 1;
+    
+    RETURN latest_response;
 END;
 $$ LANGUAGE plpgsql;
 
 -- Function to calculate flakiness rate
-CREATE OR REPLACE FUNCTION update_flakiness_rate(
-    p_test_name VARCHAR(255),
-    p_is_flaky BOOLEAN
-)
-RETURNS VOID AS $$
+CREATE OR REPLACE FUNCTION calculate_flakiness_rate(p_test_name VARCHAR)
+RETURNS FLOAT AS $$
+DECLARE
+    flaky_rate FLOAT;
 BEGIN
-    INSERT INTO flaky_tests (test_name, total_runs, flaky_runs, last_flaky_at)
-    VALUES (
-        p_test_name,
-        1,
-        CASE WHEN p_is_flaky THEN 1 ELSE 0 END,
-        CASE WHEN p_is_flaky THEN NOW() ELSE NULL END
-    )
-    ON CONFLICT (test_name) DO UPDATE SET
-        total_runs = flaky_tests.total_runs + 1,
-        flaky_runs = flaky_tests.flaky_runs + CASE WHEN p_is_flaky THEN 1 ELSE 0 END,
-        last_flaky_at = CASE WHEN p_is_flaky THEN NOW() ELSE flaky_tests.last_flaky_at END;
+    SELECT 
+        CASE 
+            WHEN total_runs > 0 THEN (flaky_runs::FLOAT / total_runs::FLOAT)
+            ELSE 0.0
+        END INTO flaky_rate
+    FROM flaky_tests
+    WHERE test_name = p_test_name;
+    
+    RETURN COALESCE(flaky_rate, 0.0);
 END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================================================
--- Completion Message
+-- Initial Data / Seed Data
 -- ============================================================================
+
+-- No seed data required for this schema
+-- Tables will be populated by test execution
+
+-- ============================================================================
+-- Grants and Permissions
+-- ============================================================================
+
+-- Grant permissions to the postgres user (default user in docker-compose)
+-- In production, you would create specific users with limited permissions
+
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO postgres;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO postgres;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO postgres;
+
+-- ============================================================================
+-- Schema Validation
+-- ============================================================================
+
+-- Verify all tables were created successfully
 DO $$
+DECLARE
+    table_count INTEGER;
 BEGIN
-    RAISE NOTICE 'PokéAPI observability database schema initialized successfully!';
-    RAISE NOTICE 'Tables created: api_responses, schema_versions, schema_changes, performance_baselines, flaky_tests';
-    RAISE NOTICE 'Views created: latest_responses, latest_schemas, active_baselines, flaky_test_stats';
+    SELECT COUNT(*) INTO table_count
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+    AND table_name IN ('api_responses', 'schema_versions', 'schema_changes', 'performance_baselines', 'flaky_tests');
+    
+    IF table_count = 5 THEN
+        RAISE NOTICE 'Database schema initialized successfully. All 5 tables created.';
+    ELSE
+        RAISE EXCEPTION 'Database schema initialization failed. Expected 5 tables, found %', table_count;
+    END IF;
 END $$;
