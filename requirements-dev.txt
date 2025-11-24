@@ -1,0 +1,24 @@
+# Include core dependencies
+-r requirements.txt
+
+# Additional Pytest Plugins
+pytest-mock==3.12.0
+pytest-order==1.2.0
+pytest-faker==2.0.0
+pytest-loguru==0.3.0
+
+# Code Quality
+black==23.12.1
+ruff==0.1.9
+mypy==1.7.1
+
+# Type Stubs
+types-psycopg2==2.9.21.16
+types-requests==2.31.0.10
+
+# Secrets Scanning
+truffleHog==2.2.1
+
+# Development Tools
+ipython==8.18.1
+ipdb==0.13.13

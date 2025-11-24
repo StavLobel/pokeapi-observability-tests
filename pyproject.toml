@@ -1,0 +1,133 @@
+[project]
+name = "pokeapi-observability-tests"
+version = "1.0.0"
+description = "Comprehensive QA automation infrastructure for PokéAPI with observability"
+authors = [
+    {name = "QA Team", email = "qa@example.com"}
+]
+requires-python = ">=3.11"
+readme = "README.md"
+license = {text = "MIT"}
+
+[project.urls]
+Homepage = "https://github.com/yourusername/pokeapi-observability-tests"
+Repository = "https://github.com/yourusername/pokeapi-observability-tests"
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+    "--cov=tests",
+    "--cov-report=html",
+    "--cov-report=term-missing",
+    "--reruns=3",
+    "--reruns-delay=1",
+]
+markers = [
+    "smoke: Quick smoke tests for basic functionality",
+    "regression: Comprehensive regression tests",
+    "load: Load and performance tests",
+    "property: Property-based tests using Hypothesis",
+    "integration: Integration tests requiring full stack",
+    "slow: Tests that take a long time to run",
+]
+asyncio_mode = "auto"
+
+# ReportPortal Configuration
+rp_endpoint = "http://localhost:8080"
+rp_project = "pokeapi-tests"
+rp_launch = "PokéAPI Tests"
+rp_launch_description = "Automated API tests for PokéAPI"
+rp_launch_attributes = "suite:smoke env:local"
+rp_log_batch_size = 20
+
+[tool.coverage.run]
+source = ["tests"]
+omit = [
+    "*/tests/*",
+    "*/conftest.py",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "C",   # flake8-comprehensions
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "pytest_reportportal.*",
+    "prometheus_client.*",
+    "locust.*",
+    "hypothesis.*",
+]
+ignore_missing_imports = true
+
+[tool.hypothesis]
+max_examples = 100
+deadline = 5000
+derandomize = false

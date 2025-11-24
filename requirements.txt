@@ -1,0 +1,39 @@
+# Core Testing Framework
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-xdist==3.5.0
+pytest-cov==4.1.0
+pytest-html==4.1.1
+pytest-env==1.1.3
+pytest-timeout==2.2.0
+pytest-rerunfailures==12.0
+
+# HTTP Client
+httpx==0.25.2
+
+# Data Validation
+pydantic==2.5.2
+
+# Metrics & Observability
+prometheus-client==0.19.0
+
+# Database
+psycopg2-binary==2.9.9
+
+# Retry Logic
+tenacity==8.2.3
+
+# Environment Management
+python-dotenv==1.0.0
+
+# Structured Logging
+python-json-logger==2.0.7
+
+# ReportPortal Integration
+pytest-reportportal==5.3.3
+
+# Load Testing
+locust==2.20.0
+
+# Property-Based Testing
+hypothesis==6.92.1
