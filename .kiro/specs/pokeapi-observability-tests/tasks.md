@@ -97,7 +97,7 @@
   - Expose circuit state as Prometheus gauge metric
   - _Requirements: 14.2, 14.5_
 
-- [ ] 6. 💾 Implement database repository layer
+- [x] 6. 💾 Implement database repository layer
   - Create tests/utils/database.py with ResponseRepository class
   - Implement store_response() method with UPSERT logic
   - Implement get_latest_response() method for historical comparison
@@ -106,7 +106,7 @@
   - Add connection pooling and error handling
   - _Requirements: 5.1-5.3_
 
-- [ ] 7. 🔍 Implement schema tracking functionality
+- [x] 7. 🔍 Implement schema tracking functionality
   - Create tests/utils/schema_tracker.py with SchemaTracker class
   - Implement extract_schema_structure() to extract schema from JSON
   - Implement compare_schemas() to detect added/removed/modified fields
